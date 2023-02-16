@@ -4,29 +4,26 @@ import time
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
+
 def fill_zeros(cluster, ex, ey):
     '''make clusters to random 5x5 shape with zeros and return 5x5 shape, coordinate system and edges (for visualizing)'''
-    # csys = array mit [x, y] der unteren linken ecke, liegt genau in getroffener Zellmitte!
+    # csys = array mit [x, y] der unteren linken ecke
     csys = np.array([ex[0], ey[0]])
-    # cover case of only one cell in one dimension... np.histogram2D used +/- 0.5 for the bin then
-    if len(ex) == 2:
-        csys[0] = ex[0]+0.5
-    if len(ey) == 2:
-        csys[1] == ey[0] + 0.5
-    
-    ''' 
-    diff_x = (ex[0] - ex[-1])/(len(ex)-2) 
-    diff_y = (ey[0] - ey[-1])/(len(ey)-2)
+    exdiff = np.diff(ex)
+    eydiff = np.diff(ey)
+    print(exdiff, eydiff)
 
-    if (abs(np.around(diff_x, decimals=3)) != 3.83) or (abs(np.around(diff_y, decimals=3)) != 3.83):
-        print(diff_x, diff_y)
-    '''
+    valuex, countx = np.unique(np.around(exdiff, decimals=4), return_counts=True)
+    valuey, county = np.unique(np.around(eydiff, decimals=4), return_counts=True)
 
-    cellsize = 3.83
-    ret = True
+    if(countx[0]!=len(exdiff) or county[0]!=len(eydiff)):
+        print("Celles don't have same distance - This is bad", xdiff, ydiff)
+    diff_x = np.mean(valuex)
+    diff_y = np.mean(valuey)
+    # IST NICHT GANZ RANDOM?!!!! 
     if(cluster.shape[0]>5 or cluster.shape[1]>5):
-        print("Clusters are bigger than 5 celles.")
-        ret = False
+        print("Well, this is bad - clusters are bigger than 5 celles.")
+        return np.zeros((5,5))
     else:
         while cluster.shape != (5,5): 
             if cluster.shape[0] <5: # horizontal
@@ -35,41 +32,43 @@ def fill_zeros(cluster, ex, ey):
                     ind = 0
                 else:
                     ind = cluster.shape[0]
-                    csys[1] = csys[1] - cellsize
+                    csys[1] = csys[1] - diff_y
+                    ey = np.insert(ey, 0, ey[0]-diff_y)
                 cluster = np.insert(cluster, ind, 0, axis=0)
             if cluster.shape[1] <5: # vertikal
                 # an random Position die null einfuegen
                 if random.random() > 0.5:
                     ind = 0
-                    csys[0] = csys[0] - cellsize
+                    csys[0] = csys[0] - diff_x
+                    ex = np.insert(ex, 0, ex[0]-diff_x)
                 else:
                     ind = cluster.shape[1]
                 cluster = np.insert(cluster, ind, 0, axis=1)
-    return cluster, csys, ret
+    return cluster, csys, ex, ey
 
 def form_cluster(xMC, yMC, EMC):
     '''make 5x5 shape from phast data - return cluster, coordinate points and edges of histogram'''
     t1 = time.time()
     arr_cluster = np.zeros((len(xMC), 5, 5))
+    edge_x = []
+    edge_y = []
     c_sys = []
     for i in range(len(xMC)):
         x = xMC[i]
         y = yMC[i]
         E = EMC[i]
-        cellsize = 3.83
-        binx = round((x.max() - x.min())/ cellsize) +1
-        biny = round((y.max() - y.min()) / cellsize) +1
-        histo, ex, ey = np.histogram2d(x, y, bins=[binx,biny], weights=E, density=False)
+        val_x, count_x = np.unique(x, return_counts=True)
+        val_y, count_y = np.unique(y, return_counts=True)
+        histo, ex, ey = np.histogram2d(x, y, bins=[count_y.max(),count_x.max()], weights=E, density=False)
         cluster = np.flip(histo.T, axis=0) # make shape more intuitive
-        cluster, csys, ret = fill_zeros(cluster, ex, ey)
-        if ret == True:
-            arr_cluster[i] = cluster
-            c_sys.append(csys)
-        else:
-            np.delete(arr_cluster, i, axis=0)
+        cluster, csys, ex, ey = fill_zeros(cluster, ex, ey)
+        edge_x.append(ex)
+        edge_y.append(ey)
+        arr_cluster[i] = cluster
+        c_sys.append(csys)
     t2 = time.time()
     print("This took ", t2-t1, "s")
-    return arr_cluster, np.array(c_sys)
+    return arr_cluster, np.array(c_sys), np.array(edge_x), np.array(edge_y)
 
 def prep_trainingsdata(x_truth, y_truth, E_truth, coordin):
     # returns [x relative pos, y relative pos, E]
