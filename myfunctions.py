@@ -122,3 +122,60 @@ def histo_output(arr_NN, arr_fit, arr_truth, name='', figsave=False, range_x = (
     plt.show()
     
     return popt1, perr1, popt2, perr2 
+
+def training_and_validation_data(xMC, yMC, EMC, x_truth, y_truth, E_truth, x_fit, y_fit, E_fit, per=0.8):
+    '''cut data into useful peaces'''
+    # fast fix for clusters that are bigger than 5x5:
+    ind_cut = np.array([40273, 40768, 170553, 182447, 223826, 228847, 295810, 328797, 419807, 438893, 496042, 502671, 508168, 570441, 622217, 646609])
+    
+    xMC = np.delete(xMC, ind_cut, axis=0)
+    yMC = np.delete(yMC, ind_cut, axis=0)
+    EMC = np.delete(EMC, ind_cut, axis=0)
+    x_truth = np.delete(x_truth, ind_cut)
+    y_truth = np.delete(y_truth, ind_cut)
+    E_truth = np.delete(E_truth, ind_cut)
+    x_fit = np.delete(x_fit, ind_cut)
+    y_fit = np.delete(y_fit, ind_cut)
+    E_fit = np.delete(E_fit, ind_cut)
+    
+    # devide into training and verification 
+    xMC_train = xMC[:round(len(E_truth)*per)]
+    xMC_veri = xMC[round(len(E_truth)*per):]
+
+    yMC_train = yMC[:round(len(E_truth)*per)]
+    yMC_veri = yMC[round(len(E_truth)*per):]
+
+    EMC_train = EMC[:round(len(E_truth)*per)]
+    EMC_veri = EMC[round(len(E_truth)*per):]
+
+    x_truth_train = x_truth[:round(len(E_truth)*per)]
+    x_truth_veri = x_truth[round(len(E_truth)*per):]
+
+    y_truth_train = y_truth[:round(len(E_truth)*per)]
+    y_truth_veri = y_truth[round(len(E_truth)*per):]
+
+    E_truth_train = E_truth[:round(len(E_truth)*per)]
+    E_truth_veri = E_truth[round(len(E_truth)*per):]
+
+    x_fit_veri = x_fit[round(len(E_truth)*per):]
+    y_fit_veri = y_fit[round(len(E_truth)*per):]
+    E_fit_veri = E_fit[round(len(E_truth)*per):]
+    
+    return xMC_train, xMC_veri, yMC_train, yMC_veri, EMC_train, EMC_veri, x_truth_train, x_truth_veri, y_truth_train, y_truth_veri, E_truth_train, E_truth_veri, x_fit_veri, y_fit_veri, E_fit_veri 
+
+def prep_clusters_standardscore(cluster):
+    '''input should be 5x5 clusters, returns z-score/standart score of reshaped clusters'''
+    cluster = cluster.reshape((cluster.shape[0], 25))
+    mu = np.mean(cluster)
+    sigma = np.std(cluster) 
+    return (cluster - mu ) / sigma
+
+def training_vs_validation_loss(fit_hist, log=True):
+    plt.plot(fit_hist.history['loss'])
+    plt.plot(fit_hist.history['val_loss'])
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend(["Training Loss", "Validation Loss"])
+    if log==True:
+        plt.yscale('log')
+    plt.show()
