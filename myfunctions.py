@@ -51,7 +51,9 @@ def form_cluster(xMC, yMC, EMC):
     '''make 5x5 shape from phast data - return cluster, coordinate points and edges of histogram'''
     t1 = time.time()
     arr_cluster = np.zeros((len(xMC), 5, 5))
-    c_sys = []
+    c_sys = np.zeros((len(xMC), 2))
+    print(c_sys.shape)
+    print(arr_cluster.shape)
     ind_i = [] # add all indecies of deleted clusters
     for i in range(len(xMC)):
         x = xMC[i]
@@ -65,14 +67,16 @@ def form_cluster(xMC, yMC, EMC):
         cluster, csys, ret = fill_zeros(cluster, ex, ey)
         if ret == True:
             arr_cluster[i] = cluster
-            c_sys.append(csys)
-            ind_i.append(0)
+            c_sys[i] = csys
         else:
-            np.delete(arr_cluster, i, axis=0)
             ind_i.append(i)
+    arr_cluster = np.delete(arr_cluster, ind_i, axis=0)
+    c_sys = np.delete(c_sys, ind_i, axis=0)
     t2 = time.time()
     print("This took ", t2-t1, "s")
-    return arr_cluster, np.array(c_sys), np.array(ind_i)
+    print(c_sys.shape)
+    print(arr_cluster.shape)
+    return arr_cluster, c_sys, np.array(ind_i)
 
 def prep_trainingsdata(x_truth, y_truth, E_truth, coordin):
     # returns [x relative pos, y relative pos, E]
