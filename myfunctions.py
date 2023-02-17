@@ -25,7 +25,7 @@ def fill_zeros(cluster, ex, ey):
     cellsize = 3.83
     ret = True
     if(cluster.shape[0]>5 or cluster.shape[1]>5):
-        print("Clusters are bigger than 5 celles.")
+        #print("Clusters are bigger than 5 celles.")
         ret = False
     else:
         while cluster.shape != (5,5): 
@@ -52,8 +52,6 @@ def form_cluster(xMC, yMC, EMC):
     t1 = time.time()
     arr_cluster = np.zeros((len(xMC), 5, 5))
     c_sys = np.zeros((len(xMC), 2))
-    print(c_sys.shape)
-    print(arr_cluster.shape)
     ind_i = [] # add all indecies of deleted clusters
     for i in range(len(xMC)):
         x = xMC[i]
@@ -74,8 +72,6 @@ def form_cluster(xMC, yMC, EMC):
     c_sys = np.delete(c_sys, ind_i, axis=0)
     t2 = time.time()
     print("This took ", t2-t1, "s")
-    print(c_sys.shape)
-    print(arr_cluster.shape)
     return arr_cluster, c_sys, np.array(ind_i)
 
 def prep_trainingsdata(x_truth, y_truth, E_truth, coordin):
@@ -133,45 +129,50 @@ def histo_output(arr_NN, arr_fit, arr_truth, name='', figsave=False, range_x = (
     
     return popt1, perr1, popt2, perr2 
 
-def training_and_validation_data(xMC, yMC, EMC, x_truth, y_truth, E_truth, x_fit, y_fit, E_fit, per=0.8):
+def training_and_validation_data(xMC, yMC, EMC, x_truth, y_truth, E_truth, x_fit, y_fit, E_fit, ind_del, clusters, coord, per=0.8):
     '''cut data into useful peaces'''
-    # fast fix for clusters that are bigger than 5x5:
-    ind_cut = np.array([40273, 40768, 170553, 182447, 223826, 228847, 295810, 328797, 419807, 438893, 496042, 502671, 508168, 570441, 622217, 646609])
     
-    xMC = np.delete(xMC, ind_cut, axis=0)
-    yMC = np.delete(yMC, ind_cut, axis=0)
-    EMC = np.delete(EMC, ind_cut, axis=0)
-    x_truth = np.delete(x_truth, ind_cut)
-    y_truth = np.delete(y_truth, ind_cut)
-    E_truth = np.delete(E_truth, ind_cut)
-    x_fit = np.delete(x_fit, ind_cut)
-    y_fit = np.delete(y_fit, ind_cut)
-    E_fit = np.delete(E_fit, ind_cut)
+    # delete clusters that are bigger than 5 -> next time: do it in phast user event?
+    xMC = np.delete(xMC, ind_del, axis=0)
+    yMC = np.delete(yMC, ind_del, axis=0)
+    EMC = np.delete(EMC, ind_del, axis=0)
+    x_truth = np.delete(x_truth, ind_del)
+    y_truth = np.delete(y_truth, ind_del)
+    E_truth = np.delete(E_truth, ind_del)
+    x_fit = np.delete(x_fit, ind_del)
+    y_fit = np.delete(y_fit, ind_del)
+    E_fit = np.delete(E_fit, ind_del)
     
     # devide into training and verification 
-    xMC_train = xMC[:round(len(E_truth)*per)]
-    xMC_veri = xMC[round(len(E_truth)*per):]
+    xMC_train = xMC[:round(len(E_truth)*0.8)]
+    xMC_veri = xMC[round(len(E_truth)*0.8):]
 
-    yMC_train = yMC[:round(len(E_truth)*per)]
-    yMC_veri = yMC[round(len(E_truth)*per):]
+    yMC_train = yMC[:round(len(E_truth)*0.8)]
+    yMC_veri = yMC[round(len(E_truth)*0.8):]
 
-    EMC_train = EMC[:round(len(E_truth)*per)]
-    EMC_veri = EMC[round(len(E_truth)*per):]
+    EMC_train = EMC[:round(len(E_truth)*0.8)]
+    EMC_veri = EMC[round(len(E_truth)*0.8):]
 
-    x_truth_train = x_truth[:round(len(E_truth)*per)]
-    x_truth_veri = x_truth[round(len(E_truth)*per):]
+    x_truth_train = x_truth[:round(len(E_truth)*0.8)]
+    x_truth_veri = x_truth[round(len(E_truth)*0.8):]
 
-    y_truth_train = y_truth[:round(len(E_truth)*per)]
-    y_truth_veri = y_truth[round(len(E_truth)*per):]
+    y_truth_train = y_truth[:round(len(E_truth)*0.8)]
+    y_truth_veri = y_truth[round(len(E_truth)*0.8):]
 
-    E_truth_train = E_truth[:round(len(E_truth)*per)]
-    E_truth_veri = E_truth[round(len(E_truth)*per):]
+    E_truth_train = E_truth[:round(len(E_truth)*0.8)]
+    E_truth_veri = E_truth[round(len(E_truth)*0.8):]
 
-    x_fit_veri = x_fit[round(len(E_truth)*per):]
-    y_fit_veri = y_fit[round(len(E_truth)*per):]
-    E_fit_veri = E_fit[round(len(E_truth)*per):]
+    x_fit_veri = x_fit[round(len(E_truth)*0.8):]
+    y_fit_veri = y_fit[round(len(E_truth)*0.8):]
+    E_fit_veri = E_fit[round(len(E_truth)*0.8):]
+
+    clusters_t =  clusters[:round(len(E_truth)*0.8)]
+    clusters_v = clusters[round(len(E_truth)*0.8):]
+
+    coord_t = coord[:round(len(E_truth)*0.8)]
+    coord_v = coord[round(len(E_truth)*0.8):]
     
-    return xMC_train, xMC_veri, yMC_train, yMC_veri, EMC_train, EMC_veri, x_truth_train, x_truth_veri, y_truth_train, y_truth_veri, E_truth_train, E_truth_veri, x_fit_veri, y_fit_veri, E_fit_veri 
+    return xMC_train, xMC_veri, yMC_train, yMC_veri, EMC_train, EMC_veri, x_truth_train, x_truth_veri, y_truth_train, y_truth_veri, E_truth_train, E_truth_veri, x_fit_veri, y_fit_veri, E_fit_veri, clusters_t, clusters_v, coord_t, coord_v 
 
 def prep_clusters_standardscore(cluster):
     '''input should be 5x5 clusters, returns z-score/standart score of reshaped clusters'''
