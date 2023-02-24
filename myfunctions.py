@@ -97,7 +97,7 @@ def histo_output(arr_NN, arr_fit, arr_truth, name='', figsave=False, range_x = (
     limu = ind_fit[0].max() + 1
     
     x_centers = 0.5*(bins[:-1]+bins[1:])
-    popt1, pcov1 = curve_fit(gaus, x_centers[liml:limu], n_counts[liml:limu], p0=[0,1, 100], sigma=1/np.sqrt(n_counts)[liml:limu])
+    popt1, pcov1 = curve_fit(gaus, x_centers[liml:limu], n_counts[liml:limu], p0=[0,1, 100], sigma=1/np.sqrt(n_counts)[liml:limu], maxfev=10000)
     perr1 = np.sqrt(np.diag(pcov1))
     x_fit = np.linspace(x_centers[liml:limu][0], x_centers[liml:limu][-1], 500)
     y_fit = gaus(x_fit, *popt1)
@@ -115,7 +115,7 @@ def histo_output(arr_NN, arr_fit, arr_truth, name='', figsave=False, range_x = (
     limu = ind_fit[0].max() + 1
     
     x_centers = 0.5*(bins[:-1]+bins[1:])
-    popt2, pcov2 = curve_fit(gaus, x_centers[liml:limu], n_counts[liml:limu], p0=[0,1, 100], sigma=1/np.sqrt(n_counts)[liml:limu])
+    popt2, pcov2 = curve_fit(gaus, x_centers[liml:limu], n_counts[liml:limu], p0=[0,1, 100], sigma=1/np.sqrt(n_counts)[liml:limu], maxfev=10000)
     perr2 = np.sqrt(np.diag(pcov2))
     x_fit = np.linspace(x_centers[liml:limu][0], x_centers[liml:limu][-1], 500)
     y_fit = gaus(x_fit, *popt2)
