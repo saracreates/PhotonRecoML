@@ -8,16 +8,17 @@ Photons create clusters over multiple cells in the ECAL. To find the $x/y$-posit
 
 ## Overview
 
-### Stage 1 - Monoenergetic photons
+### Stage 1 - Monoenergetic photons E=140GeV
 
 First everyting is kept simple. With a phast user event all cells with an energy deposit are saved and the MC truth and coral fit are also stored. The clusters are restored through python code and fit into 5x5 histograms where zero columns/rows are added (not completely) random. Clusters that are larger than 5x5 are cut out. By defining a new coordinate system in the middle of the lowest left cell that is involved the NN can learn relative coordinates to that corner as total position doesn't matter at the moment as the photons enter with no angle. 
 Now use 80% of the data for training the network and 20% for validation. The input of the network are the 25 energy values of the 5x5 cluster which is read like a page row by row starting in the upper left corner. The output of the NN are the $x/y$-position and energy of the entering photon.
 The first aim here is to get significantly better than the coral fit before moving on to the next stage.
 
 **features investigated in stage 1:**
-- [ ] Stadardizing the input
-- [ ] Normalizing the ouput
-- [ ] epoch size
+- [x] Stadardizing the input
+- [x] learning rate
+- [x] epoch size
+- [ ] dropout layers
 
 **What to do better the next time:**
 - cutting non-usable clusters already in phast user event (e.g. clusters that are bigger than 5x5)
@@ -26,6 +27,8 @@ The first aim here is to get significantly better than the coral fit before movi
 **summary**
 
 we will see...
+
+### Stage 2 - Photons with energies up to E<=200GeV
 
 ## Add your files
 
