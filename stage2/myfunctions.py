@@ -107,7 +107,7 @@ def gaus(x, mu, sigma, A):
 
 def histo_output(arr_NN, arr_fit, arr_truth, name='', figsave=False, range_x = (-1,1), bins=300, fit=True):
     '''takes output of neural network (either x,y OR E), the fit values (either x,y, OR E) and the true values of e,y or E. 
-    Define with name which parameter (x,y,E) you gave as input'''
+    Define with name which parameter (x,y,E) you gave as input. Axis are in GeV or cm'''
     
     plt.rcParams["figure.figsize"] = (10,6)
     plt.subplot(2,1,1)
@@ -210,3 +210,66 @@ def training_vs_validation_loss(fit_hist, log=True):
     if log==True:
         plt.yscale('log')
     plt.show()
+
+def standardscore(cluster):
+    '''input should be input of NN use this right before feeding NN'''
+    mu = np.mean(cluster) # over flattend cluster
+    sigma = np.std(cluster) # over falttend cluster
+    return (cluster - mu ) / sigma # in each entry
+
+def histo_output_rel(arr_NN, arr_fit, arr_truth, name='', figsave=False, range_x = (-1,1), bins=300, fit=True, num_sig=1):
+    '''similar to histo_output but written for E to show how well NN works for differnet energies. Display relative difference and return values that are more than "num_sig" times sigma away'''
+    
+    plt.rcParams["figure.figsize"] = (10,6)
+    plt.subplot(2,1,1)
+    n_counts, bins, patches = plt.hist((arr_NN-arr_truth)/arr_truth, bins=bins, range=range_x)
+    # fit
+    if fit==True:
+        maxv = n_counts.max()
+        ind_fit = np.where(n_counts > 0.3*maxv)
+        liml = ind_fit[0].min()
+        limu = ind_fit[0].max() + 1
+
+        x_centers = 0.5*(bins[:-1]+bins[1:])
+        popt1, pcov1 = curve_fit(gaus, x_centers[liml:limu], n_counts[liml:limu], p0=[0,1, 100], sigma=1/np.sqrt(n_counts)[liml:limu], maxfev=10000)
+        perr1 = np.sqrt(np.diag(pcov1))
+        x_fit = np.linspace(x_centers[liml:limu][0], x_centers[liml:limu][-1], 500)
+        y_fit = gaus(x_fit, *popt1)
+        plt.plot(x_fit, y_fit, 'r--', label="Gaussian fit with " + r"$\mu = ({:.3f} \pm {:.3f})$".format(popt1[0], perr1[0]) + ", " + r"$\sigma = ({:.3f} \pm {:.3f})$".format(popt1[1], perr1[1]))
+        plt.legend()
+        plt.xlabel("relative difference of true and predicted value of " + name)
+        plt.ylabel("counts")
+        
+        # which values does NN not learn correctly (energy)?
+        ind_bad = np.where(abs((arr_NN-arr_truth)/arr_truth) > num_sig * popt1[1]) # all events further away than 1 sigma
+        values_bad = arr_NN[ind_bad]
+    
+    plt.subplot(2,1,2)
+    n_counts, bins, patches = plt.hist((arr_fit-arr_truth)/arr_truth, bins=bins, range=range_x)
+
+    
+    if fit==True:
+        # fit
+        maxv = n_counts.max()
+        ind_fit = np.where(n_counts > 0.3*maxv)
+        liml = ind_fit[0].min()
+        limu = ind_fit[0].max() + 1
+
+        x_centers = 0.5*(bins[:-1]+bins[1:])
+        popt2, pcov2 = curve_fit(gaus, x_centers[liml:limu], n_counts[liml:limu], p0=[0,1, 100], sigma=1/np.sqrt(n_counts)[liml:limu], maxfev=10000)
+        perr2 = np.sqrt(np.diag(pcov2))
+        x_fit = np.linspace(x_centers[liml:limu][0], x_centers[liml:limu][-1], 500)
+        y_fit = gaus(x_fit, *popt2)
+        plt.plot(x_fit, y_fit, 'r--', label="Gaussian fit with " + r"$\mu = ({:.3f} \pm {:.3f})$".format(popt2[0], perr2[0]) + ", " + r"$\sigma = ({:.3f} \pm {:.3f})$".format(popt2[1], perr2[1]))
+        plt.legend()
+        plt.xlabel("relative difference of true and coral fit value of " + name)
+        plt.ylabel("counts")
+    
+    plt.tight_layout()
+    if figsave == True:
+        plt.savefig(name+"_histo.pdf")
+    plt.show()
+    
+    if fit==True:
+        #return popt1, perr1, popt2, perr2 
+        return values_bad # return values that are more than 1 (num_sig) sigma away

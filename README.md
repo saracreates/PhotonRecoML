@@ -15,10 +15,10 @@ Now use 80% of the data for training the network and 20% for validation. The inp
 The first aim here is to get significantly better than the coral fit before moving on to the next stage.
 
 **features investigated in stage 1:**
-- [x] Stadardizing the input
-- [x] learning rate
-- [x] epoch size
-- [ ] dropout layers
+- [x] Stadardizing the input (standard score) 
+- [x] learning rate ($\alpha = 0.00001$)
+- [x] rouch epoch size (200)
+- [x] dropout layers (not useful)
 
 **What to do better the next time:**
 - cutting non-usable clusters already in phast user event (e.g. clusters that are bigger than 5x5)
@@ -26,7 +26,26 @@ The first aim here is to get significantly better than the coral fit before movi
 
 **summary**
 
-we will see...
+I finished stage 1 successfully. A basic network was set up and some hyperparameter tuning was done.  The network has the following architecture:
+
+model1 = keras.Sequential([layers.Input(shape=(25)),
+                         layers.LayerNormalization(axis=1),
+                         layers.Dense(64, activation="relu"),
+                         layers.Dense(128, activation="relu"),
+                         layers.Dense(256, activation="relu"),
+                         layers.Dense(128, activation="relu"),
+                         layers.Dense(64, activation="relu"),
+                         layers.Dense(32, activation="relu"),
+                         layers.Dense(3, activation=None)])
+
+
+The best result is 
+
+| (x/y) | $\mu$ | $\sigma$ |
+| --- | --- | --- |
+| simplest model & standardization & $\alpha=0.00001$, 200 epochs| 0.00039 / 0.00893  | 0.045 / 0.046 |
+
+when performing a gaussian fit over the absolute difference of the MC truth and the predicted values of the NN.
 
 ### Stage 2 - Photons with energies up to E<=200GeV
 
