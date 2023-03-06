@@ -28,15 +28,15 @@ The first aim here is to get significantly better than the coral fit before movi
 
 I finished stage 1 successfully. A basic network was set up and some hyperparameter tuning was done.  The network has the following architecture:
 
-model1 = keras.Sequential([layers.Input(shape=(25)),
-                         layers.LayerNormalization(axis=1),
-                         layers.Dense(64, activation="relu"),
-                         layers.Dense(128, activation="relu"),
-                         layers.Dense(256, activation="relu"),
-                         layers.Dense(128, activation="relu"),
-                         layers.Dense(64, activation="relu"),
-                         layers.Dense(32, activation="relu"),
-                         layers.Dense(3, activation=None)])
+model1 = keras.Sequential([layers.Input(shape=(25)), $newline$
+                         layers.LayerNormalization(axis=1), $newline$
+                         layers.Dense(64, activation="relu"), $newline$
+                         layers.Dense(128, activation="relu"), $newline$
+                         layers.Dense(256, activation="relu"), $newline$
+                         layers.Dense(128, activation="relu"), $newline$
+                         layers.Dense(64, activation="relu"), $newline$
+                         layers.Dense(32, activation="relu"), $newline$
+                         layers.Dense(3, activation=None)]) $newline$
 
 
 The best result is 
