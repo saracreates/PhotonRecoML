@@ -8,7 +8,7 @@ Photons create clusters over multiple cells in the ECAL. To find the $x/y$-posit
 
 ## Overview
 
-### Stage 1 - Monoenergetic photons E=140GeV
+## Stage 1 - Monoenergetic photons E=140GeV
 
 First everyting is kept simple. With a phast user event all cells with an energy deposit are saved and the MC truth and coral fit are also stored. The clusters are restored through python code and fit into 5x5 histograms where zero columns/rows are added (not completely) random. Clusters that are larger than 5x5 are cut out. By defining a new coordinate system in the middle of the lowest left cell that is involved the NN can learn relative coordinates to that corner as total position doesn't matter at the moment as the photons enter with no angle. 
 Now use 80% of the data for training the network and 20% for validation. The input of the network are the 25 energy values of the 5x5 cluster which is read like a page row by row starting in the upper left corner. The output of the NN are the $x/y$-position and energy of the entering photon.
@@ -24,7 +24,7 @@ The first aim here is to get significantly better than the coral fit before movi
 - cutting non-usable clusters already in phast user event (e.g. clusters that are bigger than 5x5)
 - adding the zero columns/rows completely random on each side of the clusters
 
-**summary**
+### Summary stage 1
 
 I finished stage 1 successfully. A basic network was set up and some hyperparameter tuning was done.  The network has the following architecture:
 
@@ -47,7 +47,7 @@ The best result is
 
 when performing a gaussian fit over the absolute difference of the MC truth and the predicted values of the NN.
 
-### Stage 2 - Photons with energies up to E=<200GeV
+## Stage 2 - Photons with energies up to E=<200GeV
 
 Now photons in the energy range of 2-200 GeV are used. Biggest issue solved: remove layers.LayerNormalization as it remove the information about energy. Instead make global standardization. The network is kept the same:
 
@@ -70,11 +70,11 @@ I trained again with 200 epochs (batchsize now 64 instead of 50), validation spl
 - [x] give sum of all cluster cell energies also as an input (doesn't change much)
 - [x] placing the clusters completely random in the 5x5 grid (improves precision but not resolution)
 
-## Open questions
+**Open questions**
 
--[ ] How to normalize on other datasets?? Needed? Needed on ouput as well?
+- [ ] How to normalize on other datasets?? Needed? Needed on ouput as well?
 
-## Summary stage 2
+### Summary stage 2
 
 In stage 2 I showed that the network can not only learn the right $x/y$ position but also the correct energy when dealing with photons in an energy range of 2-200 GeV. The energy resolution is $\pm 2.2$ %. Furthermore some minor changes were investigated (see above). 
 
