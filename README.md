@@ -47,7 +47,32 @@ The best result is
 
 when performing a gaussian fit over the absolute difference of the MC truth and the predicted values of the NN.
 
-### Stage 2 - Photons with energies up to E<=200GeV
+### Stage 2 - Photons with energies up to E=<200GeV
+
+Now photons in the energy range of 2-200 GeV are used. Biggest issue solved: remove layers.LayerNormalization as it remove the information about energy. Instead make global standardization. The network is kept the same:
+
+model1 = keras.Sequential([layers.Input(shape=(25)), $\newline$
+                         layers.Dense(64, activation="relu"), $\newline$
+                         layers.Dense(128, activation="relu"), $\newline$
+                         layers.Dense(256, activation="relu"), $\newline$
+                         layers.Dense(128, activation="relu"), $\newline$
+                         layers.Dense(64, activation="relu"), $\newline$
+                         layers.Dense(32, activation="relu"), $\newline$
+                         layers.Dense(3, activation=None)]) $\newline$
+
+I trained again with 200 epochs (batchsize now 64 instead of 50), validation split of 0.1.
+
+
+**features investigated in stage 2:**
+- [x] standardiation of input: global vs. none (not a big difference)
+- [x] investigation of which E values are not trained well (lower worse than higher) 
+- [ ] change loss function from mean squared error to mean absolute percentage error (failed due to divergence)
+- [x] give sum of all cluster cell energies also as an input (doesn't change much)
+- [x] placing the clusters completely random in the 5x5 grid (improves precision but not resolution)
+
+## Open questions
+
+-[ ] How to normalize on other datasets?? Needed? Needed on ouput as well?
 
 ## Add your files
 

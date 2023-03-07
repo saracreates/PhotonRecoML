@@ -70,7 +70,7 @@ def fill_zeros_random(cluster, ex, ey, cshape):
        
     return cluster_new, csys, ret
 
-def form_cluster(xMC, yMC, EMC, clustershape=(5,5)):
+def form_cluster(xMC, yMC, EMC, clustershape=(5,5), random=False):
     '''make nxn shape from phast data - return cluster, coordinate points and edges of histogram'''
     t1 = time.time()
     arr_cluster = np.zeros((len(xMC), clustershape[0], clustershape[1])) # space holder of clusters 
@@ -85,7 +85,10 @@ def form_cluster(xMC, yMC, EMC, clustershape=(5,5)):
         biny = round((y.max() - y.min()) / cellsize) +1
         histo, ex, ey = np.histogram2d(x, y, bins=[binx,biny], weights=E, density=False)
         cluster = np.flip(histo.T, axis=0) # make shape more intuitive - looks like scattered x,y now when array is printed!
-        cluster, csys, ret = fill_zeros(cluster, ex, ey, clustershape) # bring into right clustershape
+        if random == True:
+            cluster, csys, ret = fill_zeros_random(cluster, ex, ey, clustershape) # bring into right clustershape
+        else:
+            cluster, csys, ret = fill_zeros(cluster, ex, ey, clustershape) # bring into right clustershape
         if ret == True:
             arr_cluster[i] = cluster
             c_sys[i] = csys
