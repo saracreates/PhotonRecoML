@@ -74,6 +74,10 @@ I trained again with 200 epochs (batchsize now 64 instead of 50), validation spl
 
 -[ ] How to normalize on other datasets?? Needed? Needed on ouput as well?
 
+## Summary stage 2
+
+In stage 2 I showed that the network can not only learn the right $x/y$ position but also the correct energy when dealing with photons in an energy range of 2-200 GeV. The energy resolution is $\pm 2.2$ %. Furthermore some minor changes were investigated (see above). 
+
 ## Add your files
 
 - [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
