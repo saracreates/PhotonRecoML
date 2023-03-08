@@ -69,6 +69,7 @@ I trained again with 200 epochs (batchsize now 64 instead of 50), validation spl
 - [ ] change loss function from mean squared error to mean absolute percentage error (failed due to divergence)
 - [x] give sum of all cluster cell energies also as an input (doesn't change much)
 - [x] placing the clusters completely random in the 5x5 grid (improves precision but not resolution)
+- [x] analysis of what exactly the network learned (values that are more than one $\sigma$ away have normally lower energy. There is a bias with x and y depending on how one gives the cluster as an input. With a random order of cells this can be bypassed. There is a weird peak for high energies, meaning that very high energies are not as good learned as photons with energy around 150GeV.)
 
 **Open questions**
 
