@@ -101,10 +101,13 @@ model.compile(loss="mean_squared_error", optimizer=Adam(learning_rate=0.00001))
 One can see that is the same as in stage 2 with the only difference of global standardization with fixed values, so that this model can be applied to any dataset. I use the same trainingsparameter as in stage 2 (epochs=200, batchsize=64, validation split = 0.1). 
 Note: I changed my data selection and preparation code into an object oriented code / I work with classes now :-) 
 
-**features investigated in stage 3**
+**features investigated in stage 3:**
+
 The training on dataset 1 went so smoothly that there were no new corrections added. Dataset 2 with larger angles was more interesting:
+
 - [x] Investigation of not well trained $x$-positions in datset 2. I could show that for dataset 2 the angles to the $x$-axis are much bigger than for dataset 1, as the whole shashlik part was illuminated. When looking at the ratio of clusters that lay more than $\pm \sigma$ away when looking at the relative position of $x$ one can see that these are the clusters with large angles. Conclusion: Only looking at the shape of the cluster doesn't give the NN enough information to learn the angle and therefore the right position correcly. 
--[x] Adding the absolute position. The idea behind this study is to give the NN more information for correct learning as the angles of the clusters correlate with the positions at the moment (all photons start from the target). So I changed the input shape from 25 to 27 and added the coordinates from the lower left corner of the 5 x 5 grid. The performance improved "back to normal"/ roughly same performance as without angles. 
+
+- [x] Adding the absolute position. The idea behind this study is to give the NN more information for correct learning as the angles of the clusters correlate with the positions at the moment (all photons start from the target). So I changed the input shape from 25 to 27 and added the coordinates from the lower left corner of the 5 x 5 grid. The performance improved "back to normal"/ roughly same performance as without angles. 
 
 ### Summary stage 3
 
