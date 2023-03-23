@@ -51,14 +51,16 @@ when performing a gaussian fit over the absolute difference of the MC truth and 
 
 Now photons in the energy range of 2-200 GeV are used. Biggest issue solved: remove layers.LayerNormalization as it remove the information about energy. Instead make global standardization. The network is kept the same:
 
-model1 = keras.Sequential([layers.Input(shape=(25)), $\newline$
-                         layers.Dense(64, activation="relu"), $\newline$
-                         layers.Dense(128, activation="relu"), $\newline$
-                         layers.Dense(256, activation="relu"), $\newline$
-                         layers.Dense(128, activation="relu"), $\newline$
-                         layers.Dense(64, activation="relu"), $\newline$
-                         layers.Dense(32, activation="relu"), $\newline$
-                         layers.Dense(3, activation=None)]) $\newline$
+```
+model1 = keras.Sequential([layers.Input(shape=(25)), 
+                         layers.Dense(64, activation="relu"), 
+                         layers.Dense(128, activation="relu"), 
+                         layers.Dense(256, activation="relu"), 
+                         layers.Dense(128, activation="relu"), 
+                         layers.Dense(64, activation="relu"), 
+                         layers.Dense(32, activation="relu"), 
+                         layers.Dense(3, activation=None)]) 
+```
 
 I trained again with 200 epochs (batchsize now 64 instead of 50), validation split of 0.1.
 
@@ -82,6 +84,7 @@ Now we are looking at photons in the energy range of 2-200 GeV with angles that 
 
 Let's have a look at the standard model I use for this stage. 
 
+```
 model = keras.Sequential([layers.Input(shape=(25)),
                          layers.Normalization(mean=3.9, variance=16.2), 
                          layers.Dense(64, activation="relu"),
@@ -93,6 +96,7 @@ model = keras.Sequential([layers.Input(shape=(25)),
                          layers.Dense(3, activation=None)])
 model.summary()
 model.compile(loss="mean_squared_error", optimizer=Adam(learning_rate=0.00001))
+```
 
 One can see that is the same as in stage 2 with the only difference of global standardization with fixed values, so that this model can be applied to any dataset. I use the same trainingsparameter as in stage 2 (epochs=200, batchsize=64, validation split = 0.1). 
 Note: I changed my data selection and preparation code into an object oriented code / I work with classes now :-) 
