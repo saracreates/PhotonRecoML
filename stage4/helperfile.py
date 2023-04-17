@@ -20,6 +20,7 @@ import time
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from uncertainties import unumpy as unp
+from matplotlib.colors import LogNorm
 
 
 class InputData_1photon():
@@ -35,7 +36,7 @@ class InputData_1photon():
         self.y_truth = np.array(self.event["y_truth"].array()) [:numevents]
         self.E_truth = np.array(self.event["E_truth"].array()) [:numevents]
         self.momentum = np.array(self.event["momentum"].array()) [:numevents]
-        self.x_fit = self.event["x_fit"].array(library="np") [:numevents]
+        self.x_fit = self.event["x_fit"].array(library="np") [:numevents] # fit refers to Lednev / coral fit 
         self.y_fit = self.event["y_fit"].array(library="np") [:numevents]
         self.E_fit = self.event["E_fit"].array(library="np") [:numevents]
         self.chi2_fit = self.event["chi2_fit"].array(library="np") [:numevents]
@@ -61,10 +62,13 @@ class InputData_1photon():
         self.chi2_fit = np.delete(self.chi2_fit, ind_del, axis=0)
         self.ndf_fit = np.delete(self.ndf_fit, ind_del, axis=0)
         self.num_fit = np.delete(self.num_fit, ind_del)
-        self.clusterNxN = np.delete(self.clusterNxN, ind_del, axis=0) # delete unfilled zeros clusters
-        self.coordinates = np.delete(self.coordinates, ind_del, axis=0) # delete same indices in coord system
+        try: # might be not defined yet
+            self.clusterNxN = np.delete(self.clusterNxN, ind_del, axis=0) # delete unfilled zeros clusters
+            self.coordinates = np.delete(self.coordinates, ind_del, axis=0) # delete same indices in coord system
+        except:
+            pass
         
-    def fill_zeros_random(self, cluster, ex, ey, cshape):
+    def fill_zeros_random(self, cluster, ex, ey, cshape, random):
         '''place the cluster random in the n x n grid'''
         # csys = array with [x, y] at lower left corner, exactly in the center of the ecal cell!
         csys = np.array([ex[0], ey[0]])
@@ -83,9 +87,16 @@ class InputData_1photon():
         else:
             dely = cshape[0] - cluster.shape[0]
             delx = cshape[1] - cluster.shape[1]
-            # randomly choose how much upper left corner of cluster should be moved in NxN zero cluster 
-            x = int(np.random.choice(np.arange(0, delx+1), 1))
-            y = int(np.random.choice(np.arange(0, dely+1), 1))
+            if random == True:
+                # randomly choose how much upper left corner of cluster should be moved in NxN zero cluster 
+                x = int(np.random.choice(np.arange(0, delx+1), 1))
+                y = int(np.random.choice(np.arange(0, dely+1), 1))
+            else:
+                # place in the middle
+                x_mid = np.mean(np.arange(0, delx+1))
+                y_mid = np.mean(np.arange(0, dely+1))
+                x = int(np.random.choice(np.array([np.floor(x_mid), np.ceil(x_mid)]), 1))
+                y = int(np.random.choice(np.array([np.floor(y_mid), np.ceil(y_mid)]), 1))
             cluster_new = np.zeros(cshape[0]*cshape[1]).reshape(cshape) # create empty/zero cluster
             cluster_new[y:(cluster.shape[0]+y), x:(cluster.shape[1]+x)] = cluster # insert ecal cluster into the zero cluster
             # new coordinate system
@@ -94,7 +105,7 @@ class InputData_1photon():
 
         return cluster_new, csys, ret
         
-    def form_cluster(self, clustershape=(5,5)):
+    def form_cluster(self, clustershape=(5,5), random=True):
         '''make nxn shape from phast data, extract coordinate system and find useless events'''
         print('Start shaping clusters in a ', clustershape, ' grid...')
         t1 = time.time()
@@ -110,7 +121,7 @@ class InputData_1photon():
             biny = round((y.max() - y.min()) / self.cellsize) +1
             histo, ex, ey = np.histogram2d(x, y, bins=[binx,biny], weights=E, density=False)
             cluster = np.flip(histo.T, axis=0) # make shape more intuitive - looks like scattered x,y now when array is printed!
-            cluster, csys, ret = self.fill_zeros_random(cluster, ex, ey, clustershape) # bring into right clustershape
+            cluster, csys, ret = self.fill_zeros_random(cluster, ex, ey, clustershape, random) # bring into right clustershape
             if ret == True and len(np.unique(ct)) == 1 and np.all(self.E_truth[i]>=1): # nutze nur events, die groesser als n x n sind und im Shashilik bereich liegen und ueber dem threshold von 1 GeV liegen fuer jedes Photon.
                 arr_cluster[i] = cluster
                 c_sys[i] = csys
@@ -166,6 +177,10 @@ class InputData_1photon():
         
         self.numfit_v = self.num_fit[cut:]
         print('Splitted data into training and test set!')
+
+        # prep trainings and evaluation data
+        self.prep_trainingsdata()
+        self.prep_verificationdata()
         
     def prep_trainingsdata(self):
          # returns [x relative pos, y relative pos, E] where relative means relative to lower left corner
@@ -182,13 +197,15 @@ class InputData_1photon():
 class InputData_2photon(InputData_1photon):
 
     # initialize with all raw data
-    def __init__(self, rootfile, numevents=-1, sort_cond='E'):
+    def __init__(self, rootfile, numevents=-1, sort_cond='E', min_dist=0):
         super().__init__(rootfile, numevents=numevents)
         self.prep_coralfit_data() # bring into uniform shape
-        self.sort_rightsolution(type=sort_cond) # bring 2 photons in right order
+        self.sort_rightsolution(sort_cond) # bring 2 photons in right order
+        if min_dist>0:
+            self.cut_min_distance(min_dist) #cut events that are too close together. Distance in cm.
 
-    def form_cluster(self, clustershape=(9,9)):
-        super().form_cluster(clustershape=clustershape)
+    def form_cluster(self, clustershape=(9,9), random=True):
+        super().form_cluster(clustershape=clustershape, random=random)
 
     def prep_trainingsdata(self):
         # returns [x1 rel pos, y1 rel pos, E1, x2 rel pos, y2 rel pos, E2] where relative means relative to lower left corner
@@ -196,7 +213,7 @@ class InputData_2photon(InputData_1photon):
                                 self.x_truth_train.T[1]-self.coord_t.T[0], self.y_truth_train.T[1]-self.coord_t.T[1], self.E_truth_train.T[1]]).T
 
     def deal_with_coral_fit_format(self, arr, num_fit):
-        # WIESO SELF?? OHNE  SELF?
+        
         nice_arr = np.ones((len(arr), 2))*(-1000)
         good_ind = np.where(num_fit==2)
         for i in good_ind[0]:
@@ -211,18 +228,32 @@ class InputData_2photon(InputData_1photon):
         self.chi2_fit = self.deal_with_coral_fit_format(self.chi2_fit, self.num_fit)
         self.ndf_fit = self.deal_with_coral_fit_format(self.ndf_fit, self.num_fit)
 
+    def roll_data_MSE(self, data):
+        '''bring Lednev or NN data into right order. 'data' must have shape (n, 6)'''
+        data_flipped = np.roll(data, 3, axis=1)
+        mse = np.sum(np.square(data-self.veri_truth), axis=1) 
+        mse_flipped = np.sum(np.square(data_flipped-self.veri_truth), axis=1)
+
+        ind_flip = np.where(mse_flipped<mse)
+        data[ind_flip] = np.roll(data[ind_flip], 3, axis=1)
+        return data
+
     def prep_verificationdata(self):
         # creates [x1 rel, y1 rel, E1, x2 rel, y2 rel, E2] with coordinate system with respect to lower left corner
         self.veri_truth = np.array(\
         [self.x_truth_veri.T[0]-self.coord_v.T[0], self.y_truth_veri.T[0]-self.coord_v.T[1], self.E_truth_veri.T[0], \
         self.x_truth_veri.T[1]-self.coord_v.T[0], self.y_truth_veri.T[1]-self.coord_v.T[1], self.E_truth_veri.T[1]]).T
         print("Prepared 'veri_truth' data")
+
+        # Lednev
         self.veri_fit = np.array(\
         [self.x_fit_veri.T[0]-self.coord_v.T[0], self.y_fit_veri.T[0]-self.coord_v.T[1], self.E_fit_veri.T[0], \
         self.x_fit_veri.T[1]-self.coord_v.T[0], self.y_fit_veri.T[1]-self.coord_v.T[1], self.E_fit_veri.T[1]]).T
+        # make label right:
+        self.veri_fit = self.roll_data_MSE(self.veri_fit)
         print("Prepared 'veri_fit' data (Lednev fit from coral)")
 
-    def sort_rightsolution(self, type='E'):
+    def sort_rightsolution(self, type):
         '''sort shower through condition. The shower with the higher value is the frist, the one with lower value the second.'''
         # sort condition
         if type == 'E': # sort through energy
@@ -233,9 +264,12 @@ class InputData_2photon(InputData_1photon):
             order_fit = np.argmax(self.x_fit, axis=1) # MACHT DAS SINN??? 
         elif type == 'y': # sort through y position
             order = np.argmax(self.y_truth, axis=1)
-            order_fit = np.argmax(self.y_fit, axis=1) 
+            order_fit = np.argmax(self.y_fit, axis=1)
+        elif type == 'none':
+            order = np.ones(len(self.E_truth)) # will not change anything
+            order_fit = np.ones(len(self.E_truth)) # will not change anything
         else:
-            raise(ValueError('type must be either x, y or E'))
+            raise(ValueError('type must be either x, y, E or none'))
         # true values
         ind_flip = np.where(order==0)
         self.E_truth[ind_flip] = np.fliplr(self.E_truth[ind_flip])
@@ -250,9 +284,22 @@ class InputData_2photon(InputData_1photon):
         self.chi2_fit[ind_flip_fit] = np.fliplr(self.chi2_fit[ind_flip_fit])
         self.ndf_fit[ind_flip_fit] = np.fliplr(self.ndf_fit[ind_flip_fit])
 
+    def cut_min_distance(self, dis):
+        '''cuts all photons that are less than the given distance apart! NEEDS TO BE PERFORMED BEFORE DIVIDING INTO TRAINING AND TEST SET'''
+        acc_dist = np.sqrt(self.x_truth.T[0]**2 + self.y_truth.T[0]**2) - np.sqrt(self.x_truth.T[1]**2 + self.y_truth.T[1]**2) # pos 1 - pos 2
+        ind_cut = np.where(abs(acc_dist)<dis) # scheide alle events raus bei dene die photonen zu nah sind
+        self.delete_bad_events(ind_cut)
+        print("Cutted ", len(ind_cut[0]), " clusters due to photon pair with distance smaller than ", dis, " cm.") 
+
+    def cut_onlycoraldata(self):
+        ind_cut = np.where(self.x_fit==-1000)
+        self.delete_bad_events(ind_cut)
+        print("Cutted ", len(ind_cut[0]), " to only use data with correct Lednev identification.") 
+
 class Evaluation_2photon:
     def __init__(self, ipd, output):
         '''first parameter is the dataset we are dealing with'''
+        self.ipd = ipd
         # NN output
         self.x1 = output.T[0]
         self.y1 = output.T[1]
@@ -274,6 +321,87 @@ class Evaluation_2photon:
         self.x2_c = ipd.veri_fit.T[3]
         self.y2_c = ipd.veri_fit.T[4]
         self.E2_c = ipd.veri_fit.T[5]
+
+# Data visualisation
+
+    def show_cluster(self, ind, lednev=True):
+        ''' show cluster and points of cluster "ind" (integer)'''
+        xlim = ipd.coordinates[ind][0]-ipd.cellsize/2 #left 
+        ylim = ipd.coordinates[ind][1]-ipd.cellsize/2 #bottom
+
+        ax1 = plt.subplot(1,2, 1)
+        cluster = ipd.clusterNxN[ind]
+        plt.imshow(cluster, norm=LogNorm(), extent=[xlim, xlim+ipd.cellsize*9, ylim, ylim+ipd.cellsize*9]) # extent (left, right, bottom, top)
+        im_ratio = cluster.shape[0]/cluster.shape[1]
+        plt.colorbar(fraction=0.047*im_ratio)
+        plt.xlabel("$x$ [cm]")
+        plt.ylabel("$y$ [cm]")
+
+        ax2 = plt.subplot(1,2,2)
+        plt.scatter(ipd.xMC[ind], ipd.yMC[ind], label="center of ECAL cells")
+        plt.scatter(ipd.x_truth[ind], ipd.y_truth[ind], label="MC coordinates")
+        if lednev==True:
+            plt.scatter(ipd.x_fit[ind], ipd.y_fit[ind], label="Lednev coordinates")
+        plt.xlim(xlim, xlim+ipd.cellsize*9)
+        plt.ylim(ylim, ylim+ipd.cellsize*9)
+        plt.legend()
+        plt.xlabel("$x$ [cm]")
+        plt.ylabel("$y$ [cm]")
+        ax2.set_aspect('equal', 'box')
+
+        plt.tight_layout()
+        plt.show()
+
+    def show_cluster_NNpred(self, ind, lednev=True, lim=True):
+        ''' show cluster and points of cluster "ind" (integer)'''
+        plt.style.use('standard_style.mplstyle')
+        plt.rcParams["figure.figsize"] = (10,5)
+        xlim = self.ipd.coord_v[ind][0]-self.ipd.cellsize/2 #left 
+        ylim = self.ipd.coord_v[ind][1]-self.ipd.cellsize/2 #bottom
+
+        # energy deposition of cluster
+        ax1 = plt.subplot(1,2, 1)
+        cluster = self.ipd.clusters_v[ind].reshape(9,9)
+        plt.imshow(cluster, norm=LogNorm(), extent=[xlim, xlim+self.ipd.cellsize*9, ylim, ylim+self.ipd.cellsize*9]) # extent (left, right, bottom, top)
+        im_ratio = cluster.shape[0]/cluster.shape[1]
+        plt.colorbar(fraction=0.047*im_ratio)
+        plt.xlabel("$x$ [cm]")
+        plt.ylabel("$y$ [cm]")
+
+        # scatter plot and photon positions
+        ax2 = plt.subplot(1,2,2)
+        plt.scatter(self.ipd.xMC_veri[ind], self.ipd.yMC_veri[ind], label="center of ECAL cells")
+        # idee: nicht scattern sondern graue Quadrate zeichnen?
+        plt.scatter(self.ipd.x_truth_veri[ind], self.ipd.y_truth_veri[ind], label="MC coordinates")
+        if lednev==True:
+            plt.scatter(self.ipd.x_fit_veri[ind], self.ipd.y_fit_veri[ind], label="Lednev coordinates")
+        plt.scatter(np.array([self.x1[ind], self.x2[ind]])+ self.ipd.coord_v[ind, 0], np.array([self.y1[ind], self.y2[ind]])+ self.ipd.coord_v[ind, 1], label="NN prediction")
+        if lim == True:
+            plt.xlim(xlim, xlim+self.ipd.cellsize*9)
+            plt.ylim(ylim, ylim+self.ipd.cellsize*9)
+        plt.legend()
+        plt.xlabel("$x$ [cm]")
+        plt.ylabel("$y$ [cm]")
+        ax2.set_aspect('equal', 'box')
+
+        plt.tight_layout()
+        plt.show()
+
+    def training_vs_validation_loss(self, fit_hist, log=False, save=False, title=""):
+        plt.style.use('standard_style.mplstyle')
+        plt.plot(fit_hist.history['loss'])
+        plt.plot(fit_hist.history['val_loss'])
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.legend(["Training Loss", "Validation Loss"])
+        if log==True:
+                plt.yscale('log')
+        if save==True:
+            plt.savefig(title + "_loss.pdf")
+        else:
+            plt.show()
+
+# 1D Histogramme mit Gaus Fit
 
     def show_hist_NN(self, figsize=(12,10), r_x = (-4, 4), r_y = (-4, 4), r_E = (-0.3, 0.3), fit_x=True, fit_y=True, fit_E=True, figsave=(False, 'network1')):
         '''
@@ -317,7 +445,9 @@ class Evaluation_2photon:
         plt.tight_layout()
         if figsave[0] == True:
             plt.savefig(figsave[1] +"histo.pdf")
-        plt.show()
+        else:
+            plt.show()
+        # returns (mu_x1, sigma_x1, mux2, sigma_x2, mu_y1, sigma_y1, mu_y2 , ....) with uncertainties 
         return unp.uarray(np.concatenate((fit_x1[0], fit_x2[0], fit_y1[0], fit_y2[0], fit_E1[0], fit_E2[0])), np.concatenate((fit_x1[1], fit_x2[1], fit_y1[1], fit_y2[1], fit_E1[1], fit_E2[1])))
 
     def show_hist_NN_withLednev(self, figsize=(12,10), r_x = (-4, 4), r_y = (-4, 4), r_E = (-0.3, 0.3), fit_x=(True, False), fit_y=(True, False), fit_E=(True, True), figsave=(False, 'network1')):
@@ -370,11 +500,11 @@ class Evaluation_2photon:
         if rel == True:
             n_counts, containers, patches = plt.hist((val-val_t)/val_t, range=r, alpha=alpha, label="NN")
             n_counts_c, containers_c, patches_c = plt.hist((val_c-val_t)/val_t, range=r, alpha=alpha, label="Lednev")
-            plt.xlabel("$({}$".format(param)+"$_{\mathrm{, pred}}$" + "$- {}$".format(param)+"$_{\mathrm{, MC}})$" + "$ / {}$".format(param)+"$_{\mathrm{, MC}}$")
+            plt.xlabel("$({}$".format(param)+"$_{\mathrm{, pred}}$" + "$- {}$".format(param)+"$_{\mathrm{, MC}})$" + "$ / {}$".format(param)+"$_{\mathrm{, MC}}$ [cm]")
         else:
             n_counts, containers, patches = plt.hist((val-val_t), range=r, alpha=alpha, label="NN")
             n_counts_c, containers_c, patches_c = plt.hist((val_c-val_t), range=r, alpha=alpha, label="Lednev")
-            plt.xlabel("${}$".format(param)+"$_{\mathrm{, pred}}$" + "$- {}$".format(param)+"$_{\mathrm{, MC}}$")
+            plt.xlabel("${}$".format(param)+"$_{\mathrm{, pred}}$" + "$- {}$".format(param)+"$_{\mathrm{, MC}}$ [cm]")
         if fit[0]==True:
             popt, perr = self.gaus_fit(containers, n_counts, label='{NN}')
             fit_values[np.array([0,1, 4, 5])] = np.array([popt[0], popt[1], perr[0], perr[1]])
@@ -390,10 +520,10 @@ class Evaluation_2photon:
         fit_values = np.zeros(4) # mu, simga and then uncertainties
         if rel == True:
             n_counts, containers, patches = plt.hist((val-val_t)/val_t, range=r, alpha=alpha)
-            plt.xlabel("$({}$".format(param)+"$_{\mathrm{, pred}}$" + "$- {}$".format(param)+"$_{\mathrm{, MC}})$" + "$ / {}$".format(param)+"$_{\mathrm{, MC}}$")
+            plt.xlabel("$({}$".format(param)+"$_{\mathrm{, pred}}$" + "$- {}$".format(param)+"$_{\mathrm{, MC}})$" + "$ / {}$".format(param)+"$_{\mathrm{, MC}}$ [cm]")
         else:
             n_counts, containers, patches = plt.hist((val-val_t), range=r, alpha=alpha)
-            plt.xlabel("${}$".format(param)+"$_{\mathrm{, pred}}$" + "$- {}$".format(param)+"$_{\mathrm{, MC}}$")
+            plt.xlabel("${}$".format(param)+"$_{\mathrm{, pred}}$" + "$- {}$".format(param)+"$_{\mathrm{, MC}}$ [cm]")
         if fit==True:
             popt, perr = self.gaus_fit(containers, n_counts, label='')
             fit_values = np.array([popt[0], popt[1], perr[0], perr[1]])
@@ -419,6 +549,8 @@ class Evaluation_2photon:
 
     def gaus(self, x, mu, sigma, A):
         return (A/np.sqrt(2*np.pi * sigma**2))* np.exp(-(x-mu)**2 / (2*sigma**2))
+
+# Tabellen aus Gaus Fit
 
     def make_Latex_tab(self, uarr, lednev=True):
         '''
@@ -456,3 +588,113 @@ class Evaluation_2photon:
         for n in range(6):
             print('|', names[n], '|', self.to_latex(uarr[n, 0]), '|', self.to_latex(uarr[n, 1]), '|')
 
+# 2D Histogramme 
+
+    def show_2d_hist(self, figsize=(15,15), title="", figsave=False):
+        plt.style.use('standard_style.mplstyle')
+        fig = plt.figure(figsize=figsize)
+        fig.suptitle("Relations of performence of network " + title)
+
+        diff_x = self.x1_t-self.x2_t
+        diff_y = self.y1_t-self.y2_t
+
+        # ersten 4: gegen x1_t - x2_t
+        fig.add_subplot(4,4, 1)
+        hist = plt.hist2d(self.x1 - self.x1_t, diff_x, norm=LogNorm(), bins=100)
+        plt.xlabel("$x_{1, NN} - x_{1, MC}$ [cm]")
+        plt.ylabel("$x_{1, MC} - x_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(4,4, 2)
+        hist = plt.hist2d(self.x2 - self.x2_t, diff_x, norm=LogNorm(), bins=100)
+        plt.xlabel("$x_{2, NN} - x_{2, MC}$ [cm]")
+        plt.ylabel("$x_{1, MC} - x_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(4,4, 3)
+        hist = plt.hist2d(self.y1 - self.y1_t, diff_x, norm=LogNorm(), bins=100)
+        plt.xlabel("$y_{1, NN} - y_{1, MC}$ [cm]")
+        plt.ylabel("$x_{1, MC} - x_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(4,4, 4)
+        hist = plt.hist2d(self.y2 - self.y2_t, diff_x, norm=LogNorm(), bins=100)
+        plt.xlabel("$y_{2, NN} - y_{2, MC}$ [cm]")
+        plt.ylabel("$x_{1, MC} - x_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        # zweiten 4: gegen y1_t - y2_t
+        fig.add_subplot(4,4, 5)
+        hist = plt.hist2d(self.x1 - self.x1_t, diff_y, norm=LogNorm(), bins=100)
+        plt.xlabel("$x_{1, NN} - x_{1, MC}$ [cm]")
+        plt.ylabel("$y_{1, MC} - y_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(4,4, 6)
+        hist = plt.hist2d(self.x2 - self.x2_t, diff_y, norm=LogNorm(), bins=100)
+        plt.xlabel("$x_{2, NN} - x_{2, MC}$ [cm]")
+        plt.ylabel("$y_{1, MC} - y_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(4,4, 7)
+        hist = plt.hist2d(self.y1 - self.y1_t, diff_y, norm=LogNorm(), bins=100)
+        plt.xlabel("$y_{1, NN} - y_{1, MC}$ [cm]")
+        plt.ylabel("$y_{1, MC} - y_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(4,4, 8)
+        hist = plt.hist2d(self.y2 - self.y2_t, diff_y, norm=LogNorm(), bins=100)
+        plt.xlabel("$y_{2, NN} - y_{2, MC}$ [cm]")
+        plt.ylabel("$y_{1, MC} - y_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        # dritten 4 +2: nicht gegen truth
+        fig.add_subplot(4,4, 9)
+        hist = plt.hist2d(self.x1 - self.x1_t, self.x2 - self.x2_t, norm=LogNorm(), bins=100)
+        plt.xlabel("$x_{1, NN} - x_{1, MC}$ [cm]")
+        plt.ylabel("$x_{2, NN} - x_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(4,4, 10)
+        hist = plt.hist2d(self.y1 - self.y1_t, self.y2 - self.y2_t, norm=LogNorm(), bins=100)
+        plt.xlabel("$y_{1, NN} - y_{1, MC}$ [cm]")
+        plt.ylabel("$y_{2, NN} - y_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(4,4, 11)
+        hist = plt.hist2d(self.x1 - self.x1_t, self.y2 - self.y2_t, norm=LogNorm(), bins=100)
+        plt.xlabel("$x_{1, NN} - x_{1, MC}$ [cm]")
+        plt.ylabel("$y_{2, NN} - y_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(4,4, 12)
+        hist = plt.hist2d(self.x2 - self.x2_t, self.y1 - self.y1_t, norm=LogNorm(), bins=100)
+        plt.xlabel("$x_{2, NN} - x_{2, MC}$ [cm]")
+        plt.ylabel("$y_{1, NN} - y_{1, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(4,4, 13)
+        hist = plt.hist2d(self.x2 - self.x2_t, self.y2 - self.y2_t, norm=LogNorm(), bins=100)
+        plt.xlabel("$x_{2, NN} - x_{2, MC}$ [cm]")
+        plt.ylabel("$y_{2, NN} - y_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(4,4, 14)
+        hist = plt.hist2d(self.x1 - self.x1_t, self.y1 - self.y1_t, norm=LogNorm(), bins=100)
+        plt.xlabel("$x_{1, NN} - x_{1, MC}$ [cm]")
+        plt.ylabel("$y_{1, NN} - y_{1, MC}$ [cm]")
+        plt.colorbar()
+
+        # zuletzt truth gegen truth
+
+        fig.add_subplot(4,4, 15)
+        hist = plt.hist2d(diff_x, diff_y, norm=LogNorm(), bins=100)
+        plt.xlabel("$x_{1, MC} - x_{2, MC}$ [cm]")
+        plt.ylabel("$y_{1, MC} - y_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        plt.tight_layout()
+        if figsave==True:
+            plt.savefig(title + "_2D_histos.pdf")
+        else:
+            plt.show()
