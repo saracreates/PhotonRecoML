@@ -181,7 +181,7 @@ The next idea is to use the whole ecal / the shashlik part of the ecal as an inp
 
 ## Stage 4* - Overlapping photons: whole Shashlik Input
 
-
+The input will be now (25, 49) as the whole shashlik part of the ECAL is given as an input for the NN. This is now big enough to change to a CNN.
 
 
 ## Add your files
