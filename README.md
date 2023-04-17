@@ -141,6 +141,8 @@ The best result comes from a network with a weighted loss function that returns 
 | $E_1$ | $-0,001\pm0,000$ | $-0,035\pm0,000$ |
 | $E_2$ | $-0,001\pm0,000$ | $-0,035\pm0,000$ |
 
+where the ($x$ / $y$) is in cm and $E$ means the realtive energy. I'd like to achieve something like $\sigma_{pos} = 0.25$ cm and $\sigma_{E} = 0.025$.
+
 ```
 model = keras.Sequential([layers.Input(shape=(81)), \
                          layers.Normalization(mean=2.5, variance=13.4), \
