@@ -91,6 +91,7 @@ void UserEvent2023048(PaEvent& e){
             for(int j=0; j<2; ++j){
                 int ind_photontrack = vertex.iMCtrack(j);
                 const PaMCtrack &photontrack = e.vMCtrack(ind_photontrack);
+                std::cout<<photontrack.E()<<std::endl;
                 if(photontrack.E()<1) return; // breche ab, falls photon sehr kleine Energie (1GeV) hat
                 Etruth -> push_back(photontrack.E());
                 // winkelabhaengige x und y Position! 

@@ -19,7 +19,7 @@ def standardscore(cluster):
 
 class InputData():
     # initialize with all raw data
-    def __init__(self, rootfile, numevents=-1, min_dist=0, coord='middle'):
+    def __init__(self, rootfile, numevents=-1, min_dist=0, coord='positive'):
         # extract data from rootfile
         self.event = rootfile["user202302;1"]
         self.xMC = self.event["x_MC"].array(library="np")[:numevents]
@@ -42,6 +42,7 @@ class InputData():
         self.cellsize = 3.83 #cm
         self.x_0 = -117.585 # ecal links unten in der Ecke aka (0, 0)
         self.y_0 = -89.855
+        self.coord = coord
         print('Loaded data')
 
         # modify data
@@ -49,29 +50,39 @@ class InputData():
         self.prep_coralfit_data() # bring into uniform shape
         if min_dist>0:
             self.cut_min_distance(min_dist) #cut events that are too close together. Distance in cm.
-        if coord == 'positive':
+        if self.coord == 'positive':
             self.shift_coord()
 
 
     def shift_coord(self):
         '''shift coordinate system so that only positive values for (x, y) exist'''
-        self.x_truth = self.x_truth + self.x_0
-        self.y_truth = self.y_truth + self.y_0
-        self.x_fit = self.x_fit + self.x_0
-        self.y_fit = self.y_fit + self.y_0
-        self.xMC = self.xMC + self.x_0
-        self.yMC = self.yMC + self.y_0
+        self.x_truth = self.x_truth - self.x_0
+        self.y_truth = self.y_truth - self.y_0
+        self.x_fit = self.x_fit - self.x_0
+        self.y_fit = self.y_fit - self.y_0
+        self.xMC = self.xMC - self.x_0
+        self.yMC = self.yMC - self.y_0
 
     def show_ecal(self, i, shashlik=True):
         ''' show picture of ecal with cluster i'''
-        plt.imshow(self.ecal, origin='lower', norm=LogNorm(), extent=[self.x_0-self.cellsize/2, self.x_0-self.cellsize/2 + 64*self.cellsize, self.y_0-self.cellsize/2, self.y_0-self.cellsize/2 + 48*self.cellsize]) # extent (left, right, bottom, top)
-        plt.scatter(self.x_truth[i], self.y_truth[i], c='r', label="MC coordinates")
-        plt.xticks(np.linspace(self.x_0+self.cellsize/2, self.x_0+64*self.cellsize+self.cellsize/2, (32+1)))
-        plt.yticks(np.linspace(self.y_0+self.cellsize/2, self.y_0+48*self.cellsize+self.cellsize/2, (24+1)))
+        if self.coord=='middle':
+            x_0 = self.x_0
+            y_0 = self.y_0
+            delx = 0
+            dely = 0
+        elif self.coord=='positive':
+            x_0 = 0
+            y_0 = 0
+            delx = self.x_0
+            dely = self.y_0
+        plt.imshow(self.ecal[i], origin='lower', norm=LogNorm(), extent=[x_0-self.cellsize/2, x_0-self.cellsize/2 + 64*self.cellsize, y_0-self.cellsize/2, y_0-self.cellsize/2 + 48*self.cellsize]) # extent (left, right, bottom, top)
+        plt.scatter(x_truth[i], self.y_truth[i], c='r', label="MC coordinates")
+        plt.xticks(np.linspace(x_0+self.cellsize/2, x_0+64*self.cellsize+self.cellsize/2, (32+1)))
+        plt.yticks(np.linspace(y_0+self.cellsize/2, y_0+48*self.cellsize+self.cellsize/2, (24+1)))
         plt.legend()
         if shashlik==True:
-            plt.xlim(-86.945, 96.895) # shashlik
-            plt.ylim(-43.895, 48.025) # shashlik
+            plt.xlim(-86.945 - delx, 96.895 - delx) # shashlik
+            plt.ylim(-43.895- dely, 48.025- dely) # shashlik
         plt.tight_layout() 
         plt.xlabel('$x$ [cm]')
         plt.ylabel('$y$ [cm]')
@@ -231,21 +242,41 @@ class Evaluation:
         self.y2_c = ipd.veri_fit.T[4]
         self.E2_c = ipd.veri_fit.T[5]
 
+        '''
+        if self.ipd.coord == 'positive':
+            self.x_0 = 0
+            self.y_0 = 0
+        elif self.ipd.coord == 'middle':
+            self.x_0 = ipd.x_0
+            self.y_0 = ipd_y_0
+        '''
+
 # Data visualisation
 
     def show_cluster_NNpred(self, i, shashlik=True):
         ''' show picture of ecal with cluster i and NN pred'''
         plt.style.use('standard_style.mplstyle')
         plt.rcParams["figure.figsize"] = (10,5)
-        plt.imshow(ipd.ecal_v[i], origin='lower', norm=LogNorm(), extent=[ipd.x_0-ipd.cellsize/2, ipd.x_0-ipd.cellsize/2 + 64*ipd.cellsize, ipd.y_0-ipd.cellsize/2, ipd.y_0-ipd.cellsize/2 + 48*ipd.cellsize]) # extent (left, right, bottom, top)
+        if self.ipd.coord=='middle':
+            x_0 = self.ipd.x_0
+            y_0 = self.ipd.y_0
+            delx = 0
+            dely = 0
+        elif self.ipd.coord=='positive':
+            x_0 = 0
+            y_0 = 0
+            delx = self.ipd.x_0
+            dely = self.ipd.y_0
+        plt.imshow(self.ipd.ecal_v[i], origin='lower', norm=LogNorm(), extent=[x_0-self.ipd.cellsize/2, x_0-self.ipd.cellsize/2 + 64*self.ipd.cellsize, y_0-self.ipd.cellsize/2, y_0-self.ipd.cellsize/2 + 48*self.ipd.cellsize]) # extent (left, right, bottom, top)
+        plt.colorbar()
         plt.scatter(np.array([self.x1_t[i], self.x2_t[i]]), np.array([self.y1_t[i], self.y2_t[i]]), c='r', s=12., label="MC coordinates")
         plt.scatter(np.array([self.x1[i], self.x2[i]]), np.array([self.y1[i], self.y2[i]]), s=12., c='black', label="NN coordinates")
-        plt.xticks(np.linspace(ipd.x_0+ipd.cellsize/2, ipd.x_0+64*ipd.cellsize+ipd.cellsize/2, (32+1)))
-        plt.yticks(np.linspace(ipd.y_0+ipd.cellsize/2, ipd.y_0+48*ipd.cellsize+ipd.cellsize/2, (24+1)))
+        plt.xticks(np.linspace(x_0+self.ipd.cellsize/2, x_0+64*self.ipd.cellsize+self.ipd.cellsize/2, (32+1)))
+        plt.yticks(np.linspace(y_0+self.ipd.cellsize/2, y_0+48*self.ipd.cellsize+self.ipd.cellsize/2, (24+1)))
         plt.legend()
         if shashlik==True:
-            plt.xlim(-86.945, 96.895) # shashlik
-            plt.ylim(-43.895, 48.025) # shashlik
+            plt.xlim(-86.945 - delx, 96.895- delx) # shashlik
+            plt.ylim(-43.895- dely, 48.025- dely) # shashlik
         plt.tight_layout() 
         plt.xlabel('$x$ [cm]')
         plt.ylabel('$y$ [cm]')
@@ -253,7 +284,7 @@ class Evaluation:
         plt.tight_layout()
         plt.show()
 
-    def training_vs_validation_loss(self, fit_hist, log=False, save=False, title=""):
+    def training_vs_validation_loss(self, fit_hist, log=True, save=False, title=""):
         plt.style.use('standard_style.mplstyle')
         plt.plot(fit_hist.history['loss'])
         plt.plot(fit_hist.history['val_loss'])
@@ -463,104 +494,275 @@ class Evaluation:
 
         diff_x = self.x1_t-self.x2_t
         diff_y = self.y1_t-self.y2_t
+        diff_E = abs(self.E1_t-self.E2_t)
 
-        # ersten 4: gegen x1_t - x2_t
-        fig.add_subplot(4,4, 1)
+        # erste Spalte gegen x1_t - x2_t
+        fig.add_subplot(6,5, 1)
         hist = plt.hist2d(self.x1 - self.x1_t, diff_x, norm=LogNorm(), bins=100)
         plt.xlabel("$x_{1, NN} - x_{1, MC}$ [cm]")
         plt.ylabel("$x_{1, MC} - x_{2, MC}$ [cm]")
         plt.colorbar()
 
-        fig.add_subplot(4,4, 2)
+        fig.add_subplot(6,5, 6)
         hist = plt.hist2d(self.x2 - self.x2_t, diff_x, norm=LogNorm(), bins=100)
         plt.xlabel("$x_{2, NN} - x_{2, MC}$ [cm]")
         plt.ylabel("$x_{1, MC} - x_{2, MC}$ [cm]")
         plt.colorbar()
 
-        fig.add_subplot(4,4, 3)
+        fig.add_subplot(6,5, 11)
         hist = plt.hist2d(self.y1 - self.y1_t, diff_x, norm=LogNorm(), bins=100)
         plt.xlabel("$y_{1, NN} - y_{1, MC}$ [cm]")
         plt.ylabel("$x_{1, MC} - x_{2, MC}$ [cm]")
         plt.colorbar()
 
-        fig.add_subplot(4,4, 4)
+        fig.add_subplot(6,5, 16)
         hist = plt.hist2d(self.y2 - self.y2_t, diff_x, norm=LogNorm(), bins=100)
         plt.xlabel("$y_{2, NN} - y_{2, MC}$ [cm]")
         plt.ylabel("$x_{1, MC} - x_{2, MC}$ [cm]")
         plt.colorbar()
 
-        # zweiten 4: gegen y1_t - y2_t
-        fig.add_subplot(4,4, 5)
+        fig.add_subplot(6,5, 21)
+        hist = plt.hist2d(self.E1 - self.E1_t, diff_x, norm=LogNorm(), bins=100)
+        plt.xlabel("$E_{1, NN} - E_{1, MC}$ [cm]")
+        plt.ylabel("$x_{1, MC} - x_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(6,5, 26)
+        hist = plt.hist2d(self.E2 - self.E2_t, diff_x, norm=LogNorm(), bins=100)
+        plt.xlabel("$E_{2, NN} - E_{2, MC}$ [cm]")
+        plt.ylabel("$x_{1, MC} - x_{2, MC}$ [cm]")
+        plt.colorbar()
+
+ 
+
+        # zweite Spalte: gegen y1_t - y2_t
+        fig.add_subplot(6,5, 2)
         hist = plt.hist2d(self.x1 - self.x1_t, diff_y, norm=LogNorm(), bins=100)
         plt.xlabel("$x_{1, NN} - x_{1, MC}$ [cm]")
         plt.ylabel("$y_{1, MC} - y_{2, MC}$ [cm]")
         plt.colorbar()
 
-        fig.add_subplot(4,4, 6)
+        fig.add_subplot(6,5, 7)
         hist = plt.hist2d(self.x2 - self.x2_t, diff_y, norm=LogNorm(), bins=100)
         plt.xlabel("$x_{2, NN} - x_{2, MC}$ [cm]")
         plt.ylabel("$y_{1, MC} - y_{2, MC}$ [cm]")
         plt.colorbar()
 
-        fig.add_subplot(4,4, 7)
+        fig.add_subplot(6,5, 12)
         hist = plt.hist2d(self.y1 - self.y1_t, diff_y, norm=LogNorm(), bins=100)
         plt.xlabel("$y_{1, NN} - y_{1, MC}$ [cm]")
         plt.ylabel("$y_{1, MC} - y_{2, MC}$ [cm]")
         plt.colorbar()
 
-        fig.add_subplot(4,4, 8)
+        fig.add_subplot(6,5, 17)
         hist = plt.hist2d(self.y2 - self.y2_t, diff_y, norm=LogNorm(), bins=100)
         plt.xlabel("$y_{2, NN} - y_{2, MC}$ [cm]")
         plt.ylabel("$y_{1, MC} - y_{2, MC}$ [cm]")
         plt.colorbar()
 
-        # dritten 4 +2: nicht gegen truth
-        fig.add_subplot(4,4, 9)
+        fig.add_subplot(6,5, 22)
+        hist = plt.hist2d(self.E1 - self.E1_t, diff_y, norm=LogNorm(), bins=100)
+        plt.xlabel("$E_{1, NN} - E_{1, MC}$ [cm]")
+        plt.ylabel("$y_{1, MC} - y_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(6,5, 27)
+        hist = plt.hist2d(self.E2 - self.E2_t, diff_y, norm=LogNorm(), bins=100)
+        plt.xlabel("$E_{2, NN} - E_{2, MC}$ [cm]")
+        plt.ylabel("$y_{1, MC} - y_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        # dritte spalte: gegen  E truth
+        fig.add_subplot(6,5, 3)
+        hist = plt.hist2d(self.x1 - self.x1_t, diff_E, norm=LogNorm(), bins=100)
+        plt.xlabel("$x_{1, NN} - x_{1, MC}$ [cm]")
+        plt.ylabel("$E_{1, MC} - E_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(6,5, 8)
+        hist = plt.hist2d(self.x2 - self.x2_t, diff_E, norm=LogNorm(), bins=100)
+        plt.xlabel("$x_{2, NN} - x_{2, MC}$ [cm]")
+        plt.ylabel("$E_{1, MC} - E_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(6,5, 13)
+        hist = plt.hist2d(self.y1 - self.y1_t, diff_E, norm=LogNorm(), bins=100)
+        plt.xlabel("$y_{1, NN} - y_{1, MC}$ [cm]")
+        plt.ylabel("$E_{1, MC} - E_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(6,5, 18)
+        hist = plt.hist2d(self.y2 - self.y2_t, diff_E, norm=LogNorm(), bins=100)
+        plt.xlabel("$y_{2, NN} - y_{2, MC}$ [cm]")
+        plt.ylabel("$E_{1, MC} - E_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(6,5, 23)
+        hist = plt.hist2d(self.E1 - self.E1_t, diff_E, norm=LogNorm(), bins=100)
+        plt.xlabel("$E_{1, NN} - E_{1, MC}$ [cm]")
+        plt.ylabel("$E_{1, MC} - E_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(6,5, 28)
+        hist = plt.hist2d(self.E2 - self.E2_t, diff_E, norm=LogNorm(), bins=100)
+        plt.xlabel("$E_{2, NN} - E_{2, MC}$ [cm]")
+        plt.ylabel("$E_{1, MC} - E_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        # vierte Spalte: nicht gegen truth (Position)
+        fig.add_subplot(6,5, 4)
         hist = plt.hist2d(self.x1 - self.x1_t, self.x2 - self.x2_t, norm=LogNorm(), bins=100)
         plt.xlabel("$x_{1, NN} - x_{1, MC}$ [cm]")
         plt.ylabel("$x_{2, NN} - x_{2, MC}$ [cm]")
         plt.colorbar()
 
-        fig.add_subplot(4,4, 10)
+        fig.add_subplot(6,5, 9)
         hist = plt.hist2d(self.y1 - self.y1_t, self.y2 - self.y2_t, norm=LogNorm(), bins=100)
         plt.xlabel("$y_{1, NN} - y_{1, MC}$ [cm]")
         plt.ylabel("$y_{2, NN} - y_{2, MC}$ [cm]")
         plt.colorbar()
 
-        fig.add_subplot(4,4, 11)
+        fig.add_subplot(6,5, 14)
         hist = plt.hist2d(self.x1 - self.x1_t, self.y2 - self.y2_t, norm=LogNorm(), bins=100)
         plt.xlabel("$x_{1, NN} - x_{1, MC}$ [cm]")
         plt.ylabel("$y_{2, NN} - y_{2, MC}$ [cm]")
         plt.colorbar()
 
-        fig.add_subplot(4,4, 12)
+        fig.add_subplot(6,5, 19)
         hist = plt.hist2d(self.x2 - self.x2_t, self.y1 - self.y1_t, norm=LogNorm(), bins=100)
         plt.xlabel("$x_{2, NN} - x_{2, MC}$ [cm]")
         plt.ylabel("$y_{1, NN} - y_{1, MC}$ [cm]")
         plt.colorbar()
 
-        fig.add_subplot(4,4, 13)
+        fig.add_subplot(6,5, 24)
         hist = plt.hist2d(self.x2 - self.x2_t, self.y2 - self.y2_t, norm=LogNorm(), bins=100)
         plt.xlabel("$x_{2, NN} - x_{2, MC}$ [cm]")
         plt.ylabel("$y_{2, NN} - y_{2, MC}$ [cm]")
         plt.colorbar()
 
-        fig.add_subplot(4,4, 14)
+        fig.add_subplot(6,5, 29)
         hist = plt.hist2d(self.x1 - self.x1_t, self.y1 - self.y1_t, norm=LogNorm(), bins=100)
         plt.xlabel("$x_{1, NN} - x_{1, MC}$ [cm]")
         plt.ylabel("$y_{1, NN} - y_{1, MC}$ [cm]")
         plt.colorbar()
 
+        # fuenfte Spalte: nicht gegen truth (Energie)
+        fig.add_subplot(6,5, 5)
+        hist = plt.hist2d(self.E1 - self.E1_t, self.E2 - self.E2_t, norm=LogNorm(), bins=100)
+        plt.xlabel("$E_{1, NN} - E_{1, MC}$ [cm]")
+        plt.ylabel("$E_{2, NN} - E_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(6,5, 10)
+        hist = plt.hist2d(self.E1 - self.E1_t, self.x1 - self.x1_t, norm=LogNorm(), bins=100)
+        plt.xlabel("$E_{1, NN} - E_{1, MC}$ [cm]")
+        plt.ylabel("$x_{1, NN} - x_{1, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(6,5, 15)
+        hist = plt.hist2d(self.E1 - self.E1_t, self.y1 - self.y1_t, norm=LogNorm(), bins=100)
+        plt.xlabel("$E_{1, NN} - E_{1, MC}$ [cm]")
+        plt.ylabel("$y_{1, NN} - y_{1, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(6,5, 20)
+        hist = plt.hist2d(self.E2 - self.E2_t, self.x2 - self.x2_t, norm=LogNorm(), bins=100)
+        plt.xlabel("$E_{2, NN} - E_{2, MC}$ [cm]")
+        plt.ylabel("$x_{2, NN} - x_{2, MC}$ [cm]")
+        plt.colorbar()
+
+        fig.add_subplot(6,5, 25)
+        hist = plt.hist2d(self.E2 - self.E2_t, self.y2 - self.y2_t, norm=LogNorm(), bins=100)
+        plt.xlabel("$E_{2, NN} - E_{2, MC}$ [cm]")
+        plt.ylabel("$y_{2, NN} - y_{2, MC}$ [cm]")
+        plt.colorbar()
+
+
+        '''
         # zuletzt truth gegen truth
 
-        fig.add_subplot(4,4, 15)
+        fig.add_subplot(6,5, 15)
         hist = plt.hist2d(diff_x, diff_y, norm=LogNorm(), bins=100)
         plt.xlabel("$x_{1, MC} - x_{2, MC}$ [cm]")
         plt.ylabel("$y_{1, MC} - y_{2, MC}$ [cm]")
         plt.colorbar()
-
+        '''
         plt.tight_layout()
         if figsave==True:
             plt.savefig("./bilder/" + title + "_2D_histos.pdf")
+        plt.show()
+
+# Was liegt ein sigma entfernt?
+
+    def one_sigma_away(self, fit_param, condition, figsave=False, title="network1"):
+        '''fit_param ist aus ev.show_hist_NN()'''
+        if condition=='x':
+            index = [1,3]
+            a1 = self.x1
+            a2 = self.x2
+            a1_t = self.x1_t
+            a2_t = self.x2_t
+            relative = False
+        elif condition=="y":
+            index = [5,7]
+            a1 = self.y1
+            a2 = self.y2
+            a1_t = self.y1_t
+            a2_t = self.y2_t
+            relative = False
+        elif condition=="E":
+            index = [9,11]
+            a1 = self.E1
+            a2 = self.E2
+            a1_t = self.E1_t
+            a2_t = self.E2_t
+            relative = True
         else:
-            plt.show()
+            raise ValueError("condition must be 'x', 'y' or 'E', not {}.".format(condition))
+        sig1 = unp.nominal_values(fit_param[index[0]])
+        sig2 = unp.nominal_values(fit_param[index[1]])
+
+        ind1_bad, ind2_bad = self.find_indicies(a1, a2, a1_t, a2_t, sig1, sig2, rel=relative)
+
+        plt.rcParams["figure.figsize"] = (15, 15)
+        plt.style.use('standard_style.mplstyle')
+
+        # plots mit Werten die mehr als 1 sigma von a1 abweichen
+        plt.subplot(3,2,1)
+        self.subplot_sigma(self.E1_t, ind1_bad, condition + "_1", "E_1", einheit='GeV')
+        plt.subplot(3,2,3)
+        self.subplot_sigma(self.x1_t, ind1_bad, condition + "_1", "x_1")
+        plt.subplot(3,2,5)
+        self.subplot_sigma(self.y1_t, ind1_bad, condition + "_1", "y_1")
+        # plots mit Werten die mehr als 1 sigma von a2 abweichen
+        plt.subplot(3,2,2)
+        self.subplot_sigma(self.E2_t, ind2_bad, condition + "_2", "E_2", einheit='GeV')
+        plt.subplot(3,2,4)
+        self.subplot_sigma(self.x2_t, ind2_bad, condition + "_2", "x_2")
+        plt.subplot(3,2,6)
+        self.subplot_sigma(self.y2_t, ind2_bad, condition + "_2", "y_2")
+
+        plt.tight_layout()
+        if figsave==True:
+            plt.savefig("./bilder/" + title + "_sigma_"+condition+".pdf")
+        plt.show()
+
+    def find_indicies(self, a1, a2, a1_t, a2_t, sig1, sig2, rel=False):
+        ''' finds indicies of values (= x, y, E) that are more than one sigma away'''
+        if rel==True:  
+            diff_a1 = (a1 - a1_t) / a1_t
+            diff_a2 = (a2 - a2_t) / a2_t
+        else:
+            diff_a1 = (a1 - a1_t) 
+            diff_a2 = (a2 - a2_t)
+
+        ind1_bad = np.where(abs(diff_a1) > abs(sig1))
+        ind2_bad = np.where(abs(diff_a2) > abs(sig2))
+        return ind1_bad, ind2_bad
+
+    def subplot_sigma(self, a_t, ind_a_bad, condition, label, einheit='cm', b=100):
+        hist_a_t, bin_a_t = np.histogram(a_t, bins=b)#, range=(0, 200))
+        hist_a_bad, bins = np.histogram(a_t[ind_a_bad], bins=b)#, range=(0, 200))
+        plt.bar(bin_a_t[:len(bin_a_t)-1], hist_a_bad/hist_a_t, align='edge', width=bin_a_t[1]-bin_a_t[0]) 
+        plt.xlabel("${}$ [{}]".format(label, einheit))
+        plt.ylabel("ratio of ${}$ values with $\Delta {} > \sigma_{} $".format(label, condition, "{"+condition+"}"))
