@@ -126,7 +126,7 @@ We level things up! Now we have two photons that can be placed in a 9x9 grid.
 - [x] only using monoenergetic photons also doesn't help with the resolution of (x,y).
 - [x] I've added the total position which helped which the $x$-positions as we have bigger angles there (this effect was already shown in stage 3 too)
 - [x] One convolutional layer helped a bit too although it doesn't help too much as hoped. 
-- [x] By analizing with values are more than one $\sigma$ away, one could see that photons that hit close to the edge of the 9x9 gird are learned worse. Where this bias comes from is unclear. I therefore modified the clusters to not be placed randomly in the 9x9 gird but placed in the middle. This helped with the performance! 
+- [x] By analizing with values are more than one $\sigma$ away, one could see that photons that hit close to the edge of the 9x9 gird are learned worse. Where this bias comes from is unclear. I therefore modified the clusters to not be placed randomly in the 9x9 gird but placed in the middle. This helped with the performance! In this study I also found out that the position is worse learned if the clusters hits in the middle of the ECAL cell (that makes sense). This can be seen in sin/cos-like values for the $x/y$-positions that are learned worse than one $\sigma$.
 
 Although some changes helped to improve the network, it is still not as precise as the Lednev fit. The parameters are nicely centered around 0, but the width of the Gauß-Fit is still too big. The network is just not precise enough. 
 
@@ -181,7 +181,81 @@ The next idea is to use the whole ecal / the shashlik part of the ecal as an inp
 
 ## Stage 4* - Overlapping photons: whole Shashlik Input
 
-The input will be now (25, 49) as the whole shashlik part of the ECAL is given as an input for the NN. This is now big enough to change to a CNN.
+The input will be now (25, 49) as the whole shashlik part of the ECAL is given as an input for the NN. I rewrote the user event to also save column and row number so I can just assign the energy values to an 'empty ecal' (numpy array) to simplify the data making. The coordinate system lays now in the lower left corner of the ECAL as one need positive values to use the ReLu activation function.
+
+The data input is now big enough to change to a CNN. Here one can see a simple try.
+
+```
+model = tf.keras.models.Sequential() # parameter
+layers = tf.keras.layers # alias to make it shorter to access the layers
+model.add(layers.Input(shape=(25,49,1)))
+model.add(layers.Normalization(mean=0.107, variance=0.429))
+model.add(layers.Conv2D(filters=32, kernel_size=(5, 5), activation='relu', input_shape=(25, 49, 1), padding="same"))
+model.add(layers.AveragePooling2D(pool_size=(2,2), strides=2))
+model.add(layers.Conv2D(filters=64, kernel_size=(4, 4), activation='relu', input_shape=(12, 24, 6), padding="same"))
+model.add(layers.AveragePooling2D(pool_size=(2,2), strides=2))
+model.add(layers.Flatten())
+model.add(layers.Dense(units=256, activation = 'relu'))
+model.add(layers.Dense(units=128, activation = 'relu'))
+model.add(layers.Dense(units=64, activation = 'relu'))
+model.add(layers.Dense(units=6, activation = 'relu'))
+
+model.summary()
+model.compile(loss=loss_flip_weighted, optimizer=Adam(learning_rate=0.0005))
+```
+
+Unfortunantly, this didn't help with the 2 photon problem. I tried some modifications that all didn't help neither.
+
+- [x] adjust the learning rate. The loss function mostly has a sharp edge were it drops drastically and after that nothing happens/it's a bit bumpy. I've tried to varry the learning rate but could't find a solution.
+- [x] I looked at the values that are more than one $\sigma$ away. The cluster on the edge of the ECAL as learned worse than in the middle as observed in stage 4! What's also weird: Showers with $x/y$ position worse than one $\sigma$ have low or high energies! Why is the position harder to learn if they have higher energies? 
+- [x] Making 2D-histograms shows correlations. One can see a anti-correlation between the two energies. This means that the sum of the energies is well learned but the assignment of the energies to the two photons doesn't work too well.
+- [x] changing the kernel size. I've changed the kernel size from 5 and 4 to 6 ad 3. This didn't help. 
+
+
+## Stage 5 - Counting photons
+
+As I was quite desperate on what to else to do with the 2 photons I've moved on to an other problem. I'd like to write a classification network that count's the number of photons in the picture. I rewrote the user event so I can apply it to any amought of photons. While doing this I've found a major mistake: I double saved energies of clusters if Lednev put two fits in it! This is bad! But I've reran the networks from 4 und 4* and it didn't change anything... this was apparently not the major problem and the network learned to correct the mistake.
+
+I've started with 2 photons and without even applying a distance I've been better than the Lednev fit! Yeay! I then moved on to 3 photons. 
+
+**3 photons**:
+
+The dataset is created so that the frist 2 photons have a distance of (2-20)cm (I THINK) and the third photon is then again distrubuted the same way around the second. The energy is again 2-200 GeV. This is a simple NN: 
+
+```
+model = tf.keras.models.Sequential() # 640 000 parameter
+layers = tf.keras.layers # alias to make it shorter to access the layers
+model.add(layers.Input(shape=(25,49,1)))
+model.add(layers.Normalization(mean=0.107, variance=0.429))
+model.add(layers.Conv2D(filters=16, kernel_size=(5, 5), activation='relu', input_shape=(25, 49, 1), padding="same"))
+model.add(layers.AveragePooling2D(pool_size=(2,2), strides=2))
+model.add(layers.Conv2D(filters=32, kernel_size=(4, 4), activation='relu', input_shape=(12, 24, 6), padding="same"))
+model.add(layers.AveragePooling2D(pool_size=(2,2), strides=2))
+model.add(layers.Flatten())
+model.add(layers.Dense(units=256, activation = 'relu'))
+model.add(layers.Dense(units=128, activation = 'relu'))
+model.add(layers.Dense(units=64, activation = 'relu'))
+model.add(layers.Dense(units=3, activation = 'softmax'))
+
+model.summary()
+model.compile(loss="categorical_crossentropy", optimizer=Adam(learning_rate=0.0001))
+
+```
+that creates the Confusionmatrix of (1, 0.88, 0.75).
+I played with the HP:
+- [x] less parameter: 340 000 due to 8 and 16 kernels instead of 16 and 32. CM: (0.98, 0.78, 0.83). So it's a bit worse than before.
+- [x] parameterplay 1: 196 000 due to other CNN structure (3 C-layers with 8,16, 32 kernels with 6x6, 5x5, 4x4). CM=(1, 0.87, 0.78). Very similar to the above example.
+- [x] parameterplay 2: 638 000 due to other CNN structure (3 C-layers with 8,16, 32 kernels with 4x4, 4x4, 3x3) and only one AvergPool layern inbetween. CM=(1, 0.8, 0.8). A bit worse. 
+- [x] adjust the learning rate: $\alpha = 0.001$ CM=(0.99, 0.81, 0.86). $\alpha = 0.00001$ CM=(0.99, 0.84, 0.76)/ (1, 0.82, 0.81). So a bit higher is better. I've tried the lower learning rate with Dropout (0.2, 0.1 in dense structure) and get a CM=(1, 0.82, 0.81).
+- [x] use MaxPooling on the 'less parameter' network: (0.99, 0.77, 0.82). Not really better. Idea: do it on the network shown above?
+- [x] let's combine some stuff: like parameterplay 1 and $\alpha = 0.0003$. CM = (1, 0.84, 0.79). Same but with two dropout layers with (0.2, 0.1) in the dense structure: CM=(1, 0.82, 0.82). Well this didn't change too much. 
+
+A larger problem atm: strong overfitting after ~50 epochs. Trainingsloss goes down but the validation loss up. Maye that problem is just that simple? And ~80% is just the limit for the 3 photon classification? If one looks at the cluster distribution it's clear that 2 and 3 photons can look very similar. 
+
+I've looked at the performance at differnet distances as well. One can see that at min. 5cm distance Lednev get's a lot better. But the network can cover a smaller distances as well!
+
+**4 photons**:
+
 
 
 
