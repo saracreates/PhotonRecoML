@@ -2,6 +2,8 @@
 
 This respository hosts the code for my bachelor thesis ["Neural Networks for Photon Reconstruction in Electromagnetic Calorimeters for the COMPASS and AMBER Experiments"](https://wwwcompass.cern.ch/compass/publications/theses/2023_bac_aumiller.pdf) submitted on the 07.07.2023 at the Technical University of Munich.
 
+![Cluster Visualization](./docu/cluster_4.png)
+
 
 ## Abstract of the thesis
 
