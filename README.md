@@ -1,8 +1,10 @@
 # Photon reconstruction with neural networks
 
-This respository hosts the code for my bachelor thesis ["Neural Networks for Photon Reconstruction in Electromagnetic Calorimeters for the COMPASS and AMBER Experiments"](https://wwwcompass.cern.ch/compass/publications/theses/2023_bac_aumiller.pdf) submitted on the 07.07.2023 at the Technical University of Munich.
+This repository hosts the code for my bachelor thesis ["Neural Networks for Photon Reconstruction in Electromagnetic Calorimeters for the COMPASS and AMBER Experiments"](https://wwwcompass.cern.ch/compass/publications/theses/2023_bac_aumiller.pdf) submitted on the 07.07.2023 at the Technical University of Munich.
 
-![Cluster Visualization](./docu/cluster_4.png)
+<img src="./docu/cluster_4.png" alt="Cluster Visualization" width="50%">
+
+Example of a two-photon data sample. This work aims to precisely determine the position (red crossed) and energies (measured by the individual cells) of each photon. 
 
 
 ## Abstract of the thesis
